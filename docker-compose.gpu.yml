@@ -1,0 +1,102 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: visitors
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - visitor_net
+    restart: unless-stopped
+
+  cache:
+    image: valkey/valkey:7
+    ports:
+      - "6379:6379"
+    networks:
+      - visitor_net
+    restart: unless-stopped
+
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file: .env
+    depends_on:
+      - db
+      - cache
+    ports:
+      - "8000:8000"
+    networks:
+      - visitor_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  edge:
+    build: 
+      context: ./edge
+      dockerfile: Dockerfile.gpu
+    env_file: .env
+    depends_on:
+      - backend
+    ports:
+      - "5000:5000"
+    networks:
+      - visitor_net
+    restart: unless-stopped
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - YOLOV5_DEVICE=cuda:0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+    env_file: .env
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    networks:
+      - visitor_net
+    restart: unless-stopped
+
+  rtsp-server:
+    build: 
+      context: ./rstp
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    networks:
+      - visitor_net
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - "/dev/video0:/dev/video0"
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    environment:
+      - DISPLAY=:0.0
+
+volumes:
+  pgdata:
+
+networks:
+  visitor_net:
+    driver: bridge

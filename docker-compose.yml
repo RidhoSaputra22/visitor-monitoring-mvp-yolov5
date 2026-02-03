@@ -11,6 +11,12 @@ services:
       - pgdata:/var/lib/postgresql/data
     networks:
       - visitor_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   cache:
     image: valkey/valkey:7
@@ -18,39 +24,83 @@ services:
       - "6379:6379"
     networks:
       - visitor_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   backend:
-    build: ./backend
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
     env_file: .env
     depends_on:
-      - db
-      - cache
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
     ports:
       - "8000:8000"
     networks:
       - visitor_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   edge:
-    build: ./edge
+    build: 
+      context: ./edge
+      dockerfile: Dockerfile
     env_file: .env
     depends_on:
-      - backend
-    devices:
-      - /dev/video0:/dev/video0
+      backend:
+        condition: service_healthy
+      rtsp-server:
+        condition: service_started
     ports:
       - "5000:5000"
     networks:
       - visitor_net
+    restart: unless-stopped
 
   frontend:
-    build: ./frontend
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
     env_file: .env
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
       - "3000:3000"
     networks:
       - visitor_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  rtsp-server:
+    build: 
+      context: ./rstp
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    networks:
+      - visitor_net
+    restart: unless-stopped
+    volumes:
+      - /dev/video0:/dev/video0
+    devices:
+      - "/dev/video0:/dev/video0"
+    privileged: true
 
 volumes:
   pgdata:

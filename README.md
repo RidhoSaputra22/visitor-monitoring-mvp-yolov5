@@ -13,10 +13,116 @@ Cocok untuk use case skripsi kamu:
   - kirim event ke backend
 - Statistik harian: total masuk/keluar + **unik (estimasi)**
 
-## Cara jalan (Docker)
+## Quick Start
+
+### Option 1: CPU-only (Recommended for development)
 ```bash
-docker compose up --build
+# Windows
+setup-cpu.bat
+
+# Linux/Mac
+docker-compose up --build
 ```
+
+### Option 2: GPU-enabled (For production)
+```bash
+# Windows
+setup-gpu.bat
+
+# Linux/Mac
+./setup-gpu.sh
+```
+
+## Manual Setup
+
+### Prerequisites
+- Docker Desktop
+- Docker Compose
+- For GPU: NVIDIA Docker runtime
+
+### Step 1: Choose Environment
+```bash
+# CPU-only (lighter, for development)
+cp .env.cpu .env
+
+# GPU-enabled (faster, for production)
+cp .env.gpu .env
+```
+
+### Step 2: Run Services
+```bash
+# CPU version
+docker-compose up --build
+
+# GPU version
+docker-compose -f docker-compose.gpu.yml up --build
+```
+
+## Access Points
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:8000/docs
+- **Video Stream**: http://localhost:8080/video
+
+## Default Login
+- Username: `admin`
+- Password: `admin123`
+
+## Services Overview
+
+| Service | Port | Description |
+|---------|------|-------------|
+| frontend | 3000 | Next.js web interface |
+| backend | 8000 | FastAPI REST API |
+| edge | 5000 | YOLOv5 processing service |
+| rtsp-server | 8080 | Webcam streaming |
+| db | 5432 | PostgreSQL database |
+| cache | 6379 | Valkey/Redis cache |
+
+## Development
+
+### View Logs
+```bash
+# All services
+docker-compose logs -f
+
+# Specific service
+docker-compose logs -f backend
+```
+
+### Stop Services
+```bash
+docker-compose down
+```
+
+### Clean Reset
+```bash
+# Remove containers and volumes
+docker-compose down -v
+
+# Remove unused images
+docker image prune -f
+```
+
+## Architecture
+
+```
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│  Frontend   │────│   Backend   │────│  Database   │
+│  (Next.js)  │    │  (FastAPI)  │    │(PostgreSQL)│
+│    :3000    │    │    :8000    │    │    :5432    │
+└─────────────┘    └─────────────┘    └─────────────┘
+                           │
+                           │
+                   ┌─────────────┐    ┌─────────────┐
+                   │    Edge     │────│ RTSP Server │
+                   │  (YOLOv5)   │    │  (Webcam)   │
+                   │    :5000    │    │    :8080    │
+                   └─────────────┘    └─────────────┘
+```
+
+## Configuration
+
+See [DOCKER_README.md](DOCKER_README.md) for detailed Docker configuration options.
 
 Open:
 - Frontend: http://localhost:3000

@@ -25,6 +25,32 @@ app.add_middleware(
 
 rds = redis.Redis.from_url(settings.redis_url, decode_responses=True)
 
+@app.get("/health")
+async def health():
+    """Health check endpoint for Docker"""
+    try:
+        # Check database connection
+        with Session(engine) as session:
+            session.exec(select(User).limit(1))
+        
+        # Check Redis connection
+        rds.ping()
+        
+        return {
+            "status": "healthy", 
+            "timestamp": datetime.utcnow().isoformat(),
+            "services": {
+                "database": "connected",
+                "redis": "connected"
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=503, detail={
+            "status": "unhealthy",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        })
+
 class LoginIn(BaseModel):
     username: str
     password: str

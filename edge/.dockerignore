@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyTorch models and weights
+*.pth
+*.pt
+models/
+weights/
+yolov5/
+
+# Cache
+.cache/
+
+# Logs
+*.log
+
+# Environment
+.env
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
